@@ -1,4 +1,4 @@
-# VeighNa框架的本地仿真交易模块
+# Native Simulation Trading Module for VeighNa Framework
 
 <p align="center">
   <img src ="https://vnpy.oss-cn-shanghai.aliyuncs.com/vnpy-logo.png"/>
@@ -11,23 +11,23 @@
     <img src ="https://img.shields.io/github/license/vnpy/vnpy.svg?color=orange"/>
 </p>
 
-## 说明
+## Description
 
-PaperAccount是用于本地仿真交易的功能模块，用户可以通过其UI界面基于实盘行情进行本地化的模拟交易。
+PaperAccount is a functional module for localized simulation trading, which allows users to conduct localized simulation trading based on real market quotes through its UI interface.
 
-## 安装
+## Installation
 
-安装环境推荐基于3.3.0版本以上的【[**VeighNa Studio**](https://www.vnpy.com)】。
+The recommended installation environment is based on [[**VeighNa Studio**](https://edarchimbaud.com/veighna-website)] above version 3.3.0.
 
-直接使用pip命令：
+Use pip command directly:
 
-```
+```bash
 pip install vnpy_paperaccount
 ```
 
 
-或者下载源代码后，解压后在cmd中运行：
+Or download the source code, unzip it and run it in cmd:
 
-```
+```bash
 pip install .
 ```

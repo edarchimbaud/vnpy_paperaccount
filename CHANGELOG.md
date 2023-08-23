@@ -1,8 +1,8 @@
-# 1.0.2版本
+# Version 1.0.2
 
-1. 使用zoneinfo替换pytz库
-2. 调整安装脚本setup.cfg，添加Python版本限制
+1. Replace pytz library with zoneinfo
+2. Tweak the install script setup.cfg to add Python version restriction
 
-# 1.0.1版本
+# Version 1.0.1
 
-1. 将模块的图标文件信息，改为完整路径字符串
+1. Replace the module icon file information with the full path string.

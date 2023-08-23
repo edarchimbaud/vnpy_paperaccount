@@ -7,9 +7,19 @@ from vnpy.event import Event, EventEngine
 from vnpy.trader.utility import extract_vt_symbol, save_json, load_json, ZoneInfo
 from vnpy.trader.engine import BaseEngine, MainEngine
 from vnpy.trader.object import (
-    OrderRequest, CancelRequest, QuoteData, QuoteRequest, SubscribeRequest,
-    ContractData, OrderData, TradeData, TickData,
-    LogData, PositionData, HistoryRequest, BarData
+    OrderRequest,
+    CancelRequest,
+    QuoteData,
+    QuoteRequest,
+    SubscribeRequest,
+    ContractData,
+    OrderData,
+    TradeData,
+    TickData,
+    LogData,
+    PositionData,
+    HistoryRequest,
+    BarData,
 )
 from vnpy.trader.event import (
     EVENT_ORDER,
@@ -19,14 +29,9 @@ from vnpy.trader.event import (
     EVENT_POSITION,
     EVENT_CONTRACT,
     EVENT_LOG,
-    EVENT_TIMER
+    EVENT_TIMER,
 )
-from vnpy.trader.constant import (
-    Status,
-    OrderType,
-    Direction,
-    Offset
-)
+from vnpy.trader.constant import Status, OrderType, Direction, Offset
 
 
 LOCAL_TZ = ZoneInfo(get_localzone_name())
@@ -36,6 +41,7 @@ GATEWAY_NAME = "PAPER"
 
 class PaperEngine(BaseEngine):
     """"""
+
     setting_filename: str = "paper_account_setting.json"
     data_filename: str = "paper_account_data.json"
 
@@ -121,7 +127,9 @@ class PaperEngine(BaseEngine):
         self.timer_count = 0
 
         for position in self.positions.values():
-            contract: Optional[ContractData] = self.main_engine.get_contract(position.vt_symbol)
+            contract: Optional[ContractData] = self.main_engine.get_contract(
+                position.vt_symbol
+            )
             if contract:
                 self.calculate_pnl(position)
                 self.put_event(EVENT_POSITION, copy(position))
@@ -131,7 +139,9 @@ class PaperEngine(BaseEngine):
         tick: Optional[TickData] = self.ticks.get(position.vt_symbol, None)
 
         if tick:
-            contract: Optional[ContractData] = self.main_engine.get_contract(position.vt_symbol)
+            contract: Optional[ContractData] = self.main_engine.get_contract(
+                position.vt_symbol
+            )
 
             if position.direction == Direction.SHORT:
                 multiplier: float = -position.volume * contract.size
@@ -147,7 +157,9 @@ class PaperEngine(BaseEngine):
         if original_gateway_name:
             self._subscribe(req, original_gateway_name)
         else:
-            self.write_log(f"订阅行情失败，找不到该合约{req.vt_symbol}")
+            self.write_log(
+                f"Failed to subscribe to the ticker, the contract {req.vt_symbol} could not be found."
+            )
 
     def query_history(self, req: HistoryRequest, gateway_name: str) -> List[BarData]:
         """"""
@@ -161,7 +173,9 @@ class PaperEngine(BaseEngine):
         """"""
         contract: Optional[ContractData] = self.main_engine.get_contract(req.vt_symbol)
         if not contract:
-            self.write_log(f"委托失败，找不到该合约{req.vt_symbol}")
+            self.write_log(
+                f"Order failed, this contract {req.vt_symbol} could not be found"
+            )
             return ""
 
         self.order_count += 1
@@ -211,7 +225,9 @@ class PaperEngine(BaseEngine):
             self.put_event(EVENT_ORDER, copy(order))
 
             # Free frozen position volume
-            contract: Optional[ContractData] = self.main_engine.get_contract(order.vt_symbol)
+            contract: Optional[ContractData] = self.main_engine.get_contract(
+                order.vt_symbol
+            )
             if contract.net_position:
                 return
 
@@ -219,9 +235,13 @@ class PaperEngine(BaseEngine):
                 return
 
             if order.direction == Direction.LONG:
-                position: PositionData = self.get_position(order.vt_symbol, Direction.SHORT)
+                position: PositionData = self.get_position(
+                    order.vt_symbol, Direction.SHORT
+                )
             else:
-                position: PositionData = self.get_position(order.vt_symbol, Direction.LONG)
+                position: PositionData = self.get_position(
+                    order.vt_symbol, Direction.LONG
+                )
             position.frozen -= order.volume
 
             self.put_event(EVENT_POSITION, copy(position))
@@ -230,7 +250,9 @@ class PaperEngine(BaseEngine):
         """"""
         contract: Optional[ContractData] = self.main_engine.get_contract(req.vt_symbol)
         if not contract:
-            self.write_log(f"报价失败，找不到该合约{req.vt_symbol}")
+            self.write_log(
+                f"Quote failed, the contract {req.vt_symbol} could not be found."
+            )
             return ""
 
         self.quote_count += 1
@@ -275,7 +297,9 @@ class PaperEngine(BaseEngine):
         event: Event = Event(event_type, data)
         self.event_engine.put(event)
 
-    def check_order_valid(self, order: OrderData, contract: ContractData) -> Optional[PositionData]:
+    def check_order_valid(
+        self, order: OrderData, contract: ContractData
+    ) -> Optional[PositionData]:
         """"""
         # Reject unsupported order type
         if order.type in {OrderType.FAK, OrderType.FOK, OrderType.RFQ}:
@@ -284,45 +308,59 @@ class PaperEngine(BaseEngine):
             order.status = Status.REJECTED
 
         if order.status == Status.REJECTED:
-            self.write_log(f"委托被拒单，不支持的委托类型{order.type.value}")
+            self.write_log(f"Order rejected, unsupported order type {order.type.value}")
 
         # Reject close order if no more available position
         if contract.net_position or order.offset == Offset.OPEN:
             return
 
         if order.direction == Direction.LONG:
-            short_position: PositionData = self.get_position(order.vt_symbol, Direction.SHORT)
+            short_position: PositionData = self.get_position(
+                order.vt_symbol, Direction.SHORT
+            )
             available: float = short_position.volume - short_position.frozen
 
             if order.volume > available:
                 order.status = Status.REJECTED
-                self.write_log("委托被拒单，可平仓位不足")
+                self.write_log(
+                    "Order rejected, insufficient positions available for closing"
+                )
             else:
                 short_position.frozen += order.volume
                 return short_position
         else:
-            long_position: PositionData = self.get_position(order.vt_symbol, Direction.LONG)
+            long_position: PositionData = self.get_position(
+                order.vt_symbol, Direction.LONG
+            )
             available: float = long_position.volume - long_position.frozen
 
             if order.volume > available:
                 order.status = Status.REJECTED
-                self.write_log("委托被拒单，可平仓位不足")
+                self.write_log(
+                    "Order rejected, insufficient positions available for closing"
+                )
             else:
                 long_position.frozen += order.volume
                 return long_position
 
     def cross_order(self, order: OrderData, tick: TickData) -> None:
         """"""
-        contract: Optional[ContractData] = self.main_engine.get_contract(order.vt_symbol)
+        contract: Optional[ContractData] = self.main_engine.get_contract(
+            order.vt_symbol
+        )
 
         trade_price = 0
 
         # Cross market order immediately after received
         if order.type == OrderType.MARKET:
             if order.direction == Direction.LONG:
-                trade_price = tick.ask_price_1 + self.trade_slippage * contract.pricetick
+                trade_price = (
+                    tick.ask_price_1 + self.trade_slippage * contract.pricetick
+                )
             else:
-                trade_price = tick.bid_price_1 - self.trade_slippage * contract.pricetick
+                trade_price = (
+                    tick.bid_price_1 - self.trade_slippage * contract.pricetick
+                )
         # Cross limit order only if price touched
         elif order.type == OrderType.LIMIT:
             if order.direction == Direction.LONG:
@@ -335,10 +373,14 @@ class PaperEngine(BaseEngine):
         elif order.type == OrderType.STOP:
             if order.direction == Direction.LONG:
                 if tick.ask_price_1 >= order.price:
-                    trade_price = tick.ask_price_1 + self.trade_slippage * contract.pricetick
+                    trade_price = (
+                        tick.ask_price_1 + self.trade_slippage * contract.pricetick
+                    )
             else:
                 if tick.bid_price_1 <= order.price:
-                    trade_price = tick.bid_price_1 - self.trade_slippage * contract.pricetick
+                    trade_price = (
+                        tick.bid_price_1 - self.trade_slippage * contract.pricetick
+                    )
 
         if trade_price:
             order.status = Status.ALLTRADED
@@ -355,7 +397,7 @@ class PaperEngine(BaseEngine):
                 price=trade_price,
                 volume=order.volume,
                 datetime=datetime.now(LOCAL_TZ),
-                gateway_name=order.gateway_name
+                gateway_name=order.gateway_name,
             )
             self.put_event(EVENT_TRADE, trade)
 
@@ -363,7 +405,9 @@ class PaperEngine(BaseEngine):
 
     def cross_quote(self, quote: QuoteData, tick: TickData) -> None:
         """"""
-        contract: Optional[ContractData] = self.main_engine.get_contract(quote.vt_symbol)
+        contract: Optional[ContractData] = self.main_engine.get_contract(
+            quote.vt_symbol
+        )
 
         trade_price = 0
 
@@ -402,7 +446,7 @@ class PaperEngine(BaseEngine):
                 price=trade_price,
                 volume=volume,
                 datetime=datetime.now(LOCAL_TZ),
-                gateway_name=quote.gateway_name
+                gateway_name=quote.gateway_name,
             )
             self.put_event(EVENT_TRADE, trade)
 
@@ -430,15 +474,13 @@ class PaperEngine(BaseEngine):
             if not new_volume:
                 position.price = 0
             # Position direction changed, set to open price
-            elif (
-                (new_volume > 0 and old_volume < 0)
-                or (new_volume < 0 and old_volume > 0)
+            elif (new_volume > 0 and old_volume < 0) or (
+                new_volume < 0 and old_volume > 0
             ):
                 position.price = trade.price
             # Position is add on the same direction
-            elif (
-                (old_volume >= 0 and pos_change > 0)
-                or (old_volume <= 0 and pos_change < 0)
+            elif (old_volume >= 0 and pos_change > 0) or (
+                old_volume <= 0 and pos_change < 0
             ):
                 new_cost = old_cost + pos_change * trade.price
                 position.price = new_cost / new_volume
@@ -498,7 +540,7 @@ class PaperEngine(BaseEngine):
                 symbol=symbol,
                 exchange=exchange,
                 direction=direction,
-                gateway_name=GATEWAY_NAME
+                gateway_name=GATEWAY_NAME,
             )
 
             self.positions[key] = position
@@ -521,7 +563,7 @@ class PaperEngine(BaseEngine):
                 "vt_symbol": position.vt_symbol,
                 "volume": position.volume,
                 "price": position.price,
-                "direction": position.direction.value
+                "direction": position.direction.value,
             }
             position_data.append(d)
 
@@ -553,7 +595,7 @@ class PaperEngine(BaseEngine):
         setting: dict = {
             "trade_slippage": self.trade_slippage,
             "timer_interval": self.timer_interval,
-            "instant_trade": self.instant_trade
+            "instant_trade": self.instant_trade,
         }
         save_json(self.setting_filename, setting)
 
