@@ -17,7 +17,7 @@ PaperAccount is a functional module for localized simulation trading, which allo
 
 ## Installation
 
-The recommended installation environment is based on [[**VeighNa Studio**](https://edarchimbaud.com/veighna-website)] above version 3.3.0.
+The recommended installation environment is based on [[**VeighNa Studio**](https://github.com/paperswithbacktest/vnpy)] above version 3.3.0.
 
 Use pip command directly:
 
